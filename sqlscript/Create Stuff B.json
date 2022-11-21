@@ -1,0 +1,20 @@
+{
+	"name": "Create Stuff B",
+	"properties": {
+		"folder": {
+			"name": "Create Stuff"
+		},
+		"content": {
+			"query": "USE [serverless]\nGO\n\nIF NOT EXISTS (SELECT * FROM [sys].[schemas] WHERE [name] = N'Configurations') EXEC ('CREATE SCHEMA [Configurations]')\nGO\n\nIF NOT EXISTS (SELECT * FROM [sys].[schemas] WHERE [name] = N'Metadata') EXEC ('CREATE SCHEMA [Metadata]')\nGO\n\nIF OBJECT_ID('[Configurations].[Tables]') IS NOT NULL DROP EXTERNAL TABLE [Configurations].[Tables];  \n\nGO\nCREATE EXTERNAL TABLE [Configurations].[Tables](\n  [Dataset] [nvarchar](128),\n  [Schema] [nvarchar](128),\n  [Table] [nvarchar](128),\n) WITH     ( LOCATION='Clients/Tables.csv', DATA_SOURCE = [Configurations]    , FILE_FORMAT = [delimitedtext_pipe_firstrow2]    )\n\nGO\nCREATE EXTERNAL TABLE [Configurations].[PowerBIWorkspaces](\n  [BodyExpression] [nvarchar](max),\n  [Batch] [nvarchar](128)\n) WITH     ( LOCATION='Clients/PowerBIWorkspaces.csv', DATA_SOURCE = [Configurations]    , FILE_FORMAT = [delimitedtext_pipe_firstrow2]    )\n\nGO\nCREATE OR ALTER PROCEDURE [dbo].[ExecuteQueryCET]\n  @queryCET nvarchar(max)\nAS\nBEGIN\n\n  EXEC (@queryCET)\n\nEND",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "serverless",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
