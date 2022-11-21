@@ -5,10 +5,10 @@
 		"workspaceName": {
 			"value": "synapse-reno"
 		},
-		"synapse-reno-WorkspaceDefaultSqlServer_connectionString": {
+		"bus_db_connectionString": {
 			"value": ""
 		},
-		"bus_db_connectionString": {
+		"synapse-reno-WorkspaceDefaultSqlServer_connectionString": {
 			"value": ""
 		},
 		"synapse-reno-WorkspaceDefaultStorage_properties_typeProperties_url": {

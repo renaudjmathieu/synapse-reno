@@ -7,13 +7,13 @@
 			"metadata": "Workspace name",
 			"defaultValue": "synapse-reno"
 		},
-		"synapse-reno-WorkspaceDefaultSqlServer_connectionString": {
-			"type": "secureString",
-			"metadata": "Secure string for 'connectionString' of 'synapse-reno-WorkspaceDefaultSqlServer'"
-		},
 		"bus_db_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'bus_db'"
+		},
+		"synapse-reno-WorkspaceDefaultSqlServer_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'synapse-reno-WorkspaceDefaultSqlServer'"
 		},
 		"synapse-reno-WorkspaceDefaultStorage_properties_typeProperties_url": {
 			"type": "string",
@@ -25,12 +25,15 @@
 	},
 	"resources": [
 		{
-			"name": "[concat(parameters('workspaceName'), '/AutoResolveIntegrationRuntime')]",
-			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"name": "[concat(parameters('workspaceName'), '/bus_db')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
-				"type": "Managed",
-				"typeProperties": {}
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('bus_db_connectionString')]"
+				}
 			},
 			"dependsOn": []
 		},
@@ -78,6 +81,25 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/AutoResolveIntegrationRuntime')]",
+			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "AutoResolve",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 0
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/WorkspaceSystemIdentity')]",
 			"type": "Microsoft.Synapse/workspaces/credentials",
 			"apiVersion": "2019-06-01-preview",
@@ -88,15 +110,22 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('workspaceName'), '/bus_db')]",
-			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"name": "[concat(parameters('workspaceName'), '/SQL script 1')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
-				"annotations": [],
-				"type": "AzureSqlDW",
-				"typeProperties": {
-					"connectionString": "[parameters('bus_db_connectionString')]"
-				}
+				"content": {
+					"query": "USE [bus-db]\nGO\n\nIF NOT EXISTS (SELECT * FROM sys.symmetric_keys WHERE [name] = '##MS_DatabaseMasterKey##')\n    CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'mySuperStr0n9P@assw0rd!';\n\nIF NOT EXISTS (SELECT * FROM sys.database_scoped_credentials WHERE [name] = 'sqlondemand')\n    CREATE DATABASE SCOPED CREDENTIAL [sqlondemand] \n    WITH IDENTITY = 'Managed Identity' \n\nIF NOT EXISTS (SELECT * FROM sys.database_scoped_credentials WHERE [name] = 'AzureBlobCredentials')\n    CREATE DATABASE SCOPED CREDENTIAL AzureBlobCredentials\n    WITH IDENTITY = 'SHARED ACCESS SIGNATURE',\n    SECRET = 'sp=r&st=2021-03-12T00:47:24Z&se=2025-03-11T07:47:24Z&spr=https&sv=2020-02-10&sr=c&sig=BmuxFevKhWgbvo%2Bj8TlLYObjbB7gbvWzQaAgvGcg50c%3D' -- Omit any leading question mark\n\nIF NOT EXISTS (SELECT * FROM sys.external_file_formats WHERE [name] = 'delimitedtext_pipe_firstrow1')\n    CREATE EXTERNAL FILE FORMAT [delimitedtext_pipe_firstrow1] WITH (FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS (FIELD_TERMINATOR = N'|', USE_TYPE_DEFAULT = False))\n\nIF NOT EXISTS (SELECT * FROM sys.external_file_formats WHERE [name] = 'delimitedtext_pipe_firstrow2')\n    CREATE EXTERNAL FILE FORMAT [delimitedtext_pipe_firstrow2] WITH (FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS (FIELD_TERMINATOR = N'|', First_Row = 2, USE_TYPE_DEFAULT = False))\n\nIF NOT EXISTS (SELECT * FROM sys.external_file_formats WHERE [name] = 'parquet_snappy')\n    CREATE EXTERNAL FILE FORMAT [parquet_snappy] WITH (FORMAT_TYPE = PARQUET, DATA_COMPRESSION = N'org.apache.hadoop.io.compress.SnappyCodec')\n\nIF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE [name] = 'bus-ds')\n    CREATE EXTERNAL DATA SOURCE [bus-ds] \n    WITH \n    (\n        LOCATION = 'https://synapsereno.dfs.core.windows.net/filesystem/bus-ds',\n        CREDENTIAL = sqlondemand\n    )\n\nIF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE [name] = 'RouteData')\n    CREATE EXTERNAL DATA SOURCE [RouteData]\n    WITH (\n        LOCATION = 'https://azuresqlworkshopsa.blob.core.windows.net/bus',\n        CREDENTIAL = AzureBlobCredentials\n    )\n\nIF OBJECT_ID('[dbo].[Routes]') IS NOT NULL DROP EXTERNAL TABLE [dbo].[Routes]\nCREATE EXTERNAL TABLE [dbo].[Routes]\n(\n\t[Id] [int],\n\t[AgencyId] [varchar](100),\n\t[ShortName] [varchar](100),\n\t[Description] [varchar](1000),\n\t[Type] [int]\n) \nWITH \n(\n    LOCATION = 'dbo/Routes.parquet', \n    DATA_SOURCE = [bus-ds],\n    FILE_FORMAT = [parquet_snappy]    \n)\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "bus-db",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
 			},
 			"dependsOn": []
 		}
