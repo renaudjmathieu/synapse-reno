@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 2",
+	"properties": {
+		"content": {
+			"query": "USE [bus-db]\nGO\n\nINSERT INTO dbo.[Routes]\n\t([Id], [AgencyId], [ShortName], [Description], [Type])\nSELECT \n    [C1] AS [Id], \n    [C2] AS [AgencyId], \n    [C3] AS [ShortName], \n    [C5] AS [Description], \n    [C6] AS [Type]\nFROM\nOPENROWSET\n\t(   \n        BULK 'routes.txt', \n\t\tDATA_SOURCE = 'RouteData', \n\t\tFORMAT = 'csv',\n        PARSER_VERSION = '2.0',\n        FIRST_ROW = 2\n    ) AS ROWS",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "bus-db",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
